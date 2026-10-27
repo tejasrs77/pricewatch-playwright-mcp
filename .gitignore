@@ -1,0 +1,26 @@
+@"
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+data/*.db
+data/*.db-*
+data/*.sqlite
+data/*.sqlite3
+data/mcp-trace.jsonl
+playwright-report/
+test-results/
+coverage/
+*.log
+.vscode/
+"@ | Set-Content .gitignore
+# Playwright MCP generated files
+.playwright-mcp/
+data/browsers/
+
+# Browser artifacts
+screenshots/
+*.webm
+
+*.sqlite*

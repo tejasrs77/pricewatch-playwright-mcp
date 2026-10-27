@@ -1,0 +1,29 @@
+{
+  "name": "pricewatch-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "dev": "node scripts/dev.js",
+    "build": "vite build",
+    "test": "node --test tests/unit.test.js tests/api.test.js",
+    "test:e2e": "node --test tests/e2e.test.js",
+    "check": "npm run test && npm run build && npm run test:e2e",
+    "browser:install": "node scripts/install-browser.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@playwright/mcp": "0.0.83",
+    "express": "^5.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}
