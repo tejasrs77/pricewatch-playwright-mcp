@@ -43,12 +43,28 @@ export function record(db, listing, value, runId) {
     return id;
   } catch(e) { db.exec('ROLLBACK'); throw e; }
 }
+export function evaluateTarget(db, sku) {
+  const target = db.prepare('SELECT price FROM targets WHERE sku=?').get(sku)?.price;
+  for (const l of db.prepare('SELECT * FROM listings WHERE sku=?').all(sku)) {
+    const o = latest(db, l.id);
+    if (o?.stock && o.price <= target)
+      db.prepare('INSERT OR IGNORE INTO alerts(listing_id,observation_id,kind,message,created_at) VALUES(?,?,?,?,?)')
+        .run(l.id, o.id, 'target', l.name + ' reached your target at ' + l.store, new Date().toISOString());
+  }
+}
 export function dashboard(db) {
   const listings = db.prepare('SELECT * FROM listings ORDER BY sku,store').all().map(l => ({
     ...l, latest: latest(db,l.id) ?? null,
     target: db.prepare('SELECT price FROM targets WHERE sku=?').get(l.sku)?.price ?? null,
     history: db.prepare('SELECT price,stock,observed_at FROM (SELECT * FROM observations WHERE listing_id=? ORDER BY id DESC LIMIT 60) ORDER BY id').all(l.id)
   }));
-  return { listings, alerts: db.prepare('SELECT * FROM alerts ORDER BY id DESC LIMIT 100').all(),
+  const targets = db.prepare('SELECT * FROM targets').all().map(t => {
+    const matches = listings.filter(l => l.sku === t.sku);
+    const prices = matches.filter(l => l.latest?.stock).map(l => l.latest.price);
+    const bestPrice = prices.length ? Math.min(...prices) : null;
+    return { ...t, name: matches[0]?.name || t.sku, bestPrice,
+      status: bestPrice !== null && bestPrice <= t.price ? 'Triggered' : 'Monitoring' };
+  });
+  return { listings, targets, alerts: db.prepare('SELECT * FROM alerts ORDER BY id DESC LIMIT 100').all(),
     runs: db.prepare('SELECT * FROM runs ORDER BY id DESC LIMIT 20').all().map(r => ({...r, errors: JSON.parse(r.errors)})) };
 }

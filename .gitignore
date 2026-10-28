@@ -1,26 +1,40 @@
-@"
+
+# Dependencies
 node_modules/
+
+# Production build
 dist/
+
+# Environment variables
 .env
 .env.*
 !.env.example
+
+# SQLite databases
 data/*.db
 data/*.db-*
 data/*.sqlite
 data/*.sqlite3
+*.sqlite*
+
+# MCP generated files
+.playwright-mcp/
 data/mcp-trace.jsonl
+data/browsers/
+
+# Playwright testing artifacts
 playwright-report/
 test-results/
 coverage/
-*.log
-.vscode/
-"@ | Set-Content .gitignore
-# Playwright MCP generated files
-.playwright-mcp/
-data/browsers/
-
-# Browser artifacts
 screenshots/
 *.webm
 
-*.sqlite*
+# Ollama local data
+data/ollama/
+data/models/
+
+# Logs
+*.log
+
+# VS Code
+.vscode/

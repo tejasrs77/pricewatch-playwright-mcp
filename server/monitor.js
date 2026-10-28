@@ -13,7 +13,7 @@ export class Monitor {
     this.active = null;
   }
 
-  run() {
+  run(sku = null) {
     if (this.running) {
       return Promise.reject(
         Object.assign(
@@ -25,7 +25,7 @@ export class Monitor {
 
     this.running = true;
 
-    this.active = this.scan().finally(() => {
+    this.active = this.scan(sku).finally(() => {
       this.running = false;
       this.active = null;
     });
@@ -33,7 +33,7 @@ export class Monitor {
     return this.active;
   }
 
-  async scan() {
+  async scan(sku) {
     const db = this.db;
 
     const id = Number(
@@ -55,7 +55,7 @@ export class Monitor {
       const listings = db
         .prepare('SELECT * FROM listings')
         .all()
-        .filter(listing => activeIds.has(listing.id));
+        .filter(listing => activeIds.has(listing.id) && (!sku || listing.sku === sku));
 
       for (const listing of listings) {
         let error;

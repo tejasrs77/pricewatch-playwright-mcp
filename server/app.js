@@ -3,7 +3,7 @@ import express from 'express';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 
-import { dashboard } from './db.js';
+import { dashboard, evaluateTarget } from './db.js';
 import { storeRouter } from './stores.js';
 import { products } from './catalog.js';
 import { planWithAi } from './agent.js';
@@ -95,7 +95,8 @@ export function createApp({
         });
       }
 
-      res.json(await monitor.run());
+      const { sku } = z.object({ sku: z.enum(products.map(p => p.sku)).optional() }).parse(req.body || {});
+      res.json(await monitor.run(sku));
     } catch (error) {
       next(error);
     }
@@ -128,6 +129,7 @@ export function createApp({
       ON CONFLICT(sku)
       DO UPDATE SET price=excluded.price
     `).run(sku, price);
+    evaluateTarget(db, sku);
   };
 
   app.put('/api/targets/:sku', (req, res) => {
@@ -212,6 +214,7 @@ export function createApp({
   let agentBusy = false;
 
   app.post('/api/agent', async (req, res, next) => {
+    let acquired = false;
     try {
       if (!aiEnabled) {
         return res.status(503).json({
@@ -236,13 +239,14 @@ export function createApp({
       }
 
       agentBusy = true;
+      acquired = true;
 
       const plan = await planner(prompt);
 
       let result;
 
       if (plan.action === 'scan') {
-        result = await monitor.run();
+        result = await monitor.run(plan.sku);
 
       } else if (plan.action === 'target') {
         setTarget(
@@ -251,7 +255,7 @@ export function createApp({
         );
 
         result = {
-          message: 'Target saved. Alerts trigger when a future observation crosses the target.'
+          message: 'Target saved. See Alerts for its current monitoring status.'
         };
 
       } else {
@@ -271,7 +275,7 @@ export function createApp({
     } catch (error) {
       next(error);
     } finally {
-      agentBusy = false;
+      if (acquired) agentBusy = false;
     }
   });
 

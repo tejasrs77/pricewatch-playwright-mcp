@@ -171,3 +171,33 @@ test('AI actions use application services (injected planner)', async () => {
     await f.close();
   }
 });
+
+test('product scans and saved targets reflect qualifying in-stock observations immediately', async () => {
+  const f = await fixture({aiEnabled:true, planner:async()=>({action:'scan',sku,targetRupees:null})});
+  try {
+    await f.request(`/api/targets/${sku}`, 'PUT', {price:100});
+    let d = (await f.request('/api/dashboard')).body;
+    assert.equal(d.targets[0].status, 'Monitoring');
+    assert.equal((await f.request('/api/scan','POST',{sku:'unknown'})).status,400);
+    assert.equal((await f.request('/api/scan','POST',{sku})).body.saved,2);
+    d = (await f.request('/api/dashboard')).body;
+    assert.ok(d.listings.filter(l=>l.sku!==sku).every(l=>l.latest===null));
+    const price = d.listings.find(l=>l.id===listingId).latest.price;
+    await f.request(`/api/targets/${sku}`, 'PUT', {price});
+    d = (await f.request('/api/dashboard')).body;
+    assert.equal(d.targets[0].status,'Triggered');
+    const count = d.alerts.filter(a=>a.kind==='target').length;
+    assert.ok(count>0);
+    await f.request(`/api/targets/${sku}`, 'PUT', {price});
+    assert.equal((await f.request('/api/dashboard')).body.alerts.filter(a=>a.kind==='target').length,count);
+    await f.request(`/api/targets/${sku}`, 'PUT', {price:100});
+    await f.request(`/api/demo/${listingId}`,'PUT',{price:100,stock:false});
+    assert.equal((await f.request('/api/agent','POST',{prompt:'scan product'})).body.result.saved,2);
+    assert.equal((await f.request('/api/dashboard')).body.targets[0].status,'Monitoring');
+    await f.request(`/api/demo/${listingId}`,'PUT',{price:100,stock:true});
+    await f.request('/api/scan','POST',{sku});
+    assert.equal((await f.request('/api/dashboard')).body.targets[0].status,'Triggered');
+    await f.request(`/api/targets/${sku}`,'DELETE');
+    assert.equal((await f.request('/api/dashboard')).body.targets.length,0);
+  } finally { await f.close(); }
+});
